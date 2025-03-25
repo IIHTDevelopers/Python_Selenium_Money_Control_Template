@@ -1,19 +1,15 @@
-#from testutils.TestResults import TestResults
-
-#from testutils.TestCaseResultDto import TestCaseResultDto
-from src.test.python.com.iiht.evaluation.automation.testutils.TestResults import TestResults
-from src.test.python.com.iiht.evaluation.automation.testutils.TestCaseResultDto import TestCaseResultDto
+from test.TestResults import TestResults
+from test.TestCaseResultDto import TestCaseResultDto
 import json
 import requests
-import inspect
+import os
+
 
 class TestUtils:
     GUID = "dc66f3c1-630f-40ab-8314-f7bb9ffcb71f"
-    URL = "https://yaksha-prod-sbfn.azurewebsites.net/api/YakshaMFAEnqueue?code=jSTWTxtQ8kZgQ5FC0oLgoSgZG7UoU9Asnmxgp6hLLvYId/GW9ccoLw=="
-    RED_BOLD_BRIGHT = "\033[1;91m" # RED
-    GREEN_BOLD_BRIGHT = "\033[1;92m" # GREEN
-    YELLOW_BOLD_BRIGHT = "\033[1;93m" # YELLOW
-    BLUE_BOLD_BRIGHT = "\033[1;94m" # BLUE
+    # URL = "https://yaksha-prod-sbfn.azurewebsites.net/api/YakshaMFAEnqueue?code=jSTWTxtQ8kZgQ5FC0oLgoSgZG7UoU9Asnmxgp6hLLvYId/GW9ccoLw=="
+    URL = "https://compiler.techademy.com/v1/mfa-results/push"
+
     @classmethod
     def yakshaAssert(self, test_name, result, test_type):
         ref = open("../custom.ih", "r")
@@ -30,21 +26,14 @@ class TestUtils:
         test_case_result_dto = TestCaseResultDto(test_name, test_type, 1, result_score, result_status, True, "")
         test_case_results[self.GUID] = test_case_result_dto
 
-        test_results = TestResults(json.dumps(test_case_results), customData)
+        hostName = os.environ.get('HOSTNAME')
+        attemptId = os.environ.get('ATTEMPT_ID')
+
+        test_results = TestResults(json.dumps(test_case_results), customData, hostName, attemptId)
 
         final_result = json.dumps(test_results)
 
-        requests.post(self.URL, final_result)
-                
-        print("\n" + self.BLUE_BOLD_BRIGHT + "=>", end="")
-        print(self.BLUE_BOLD_BRIGHT + "Test For:", end="")
-        print(self.BLUE_BOLD_BRIGHT + test_name, end="")
-        print(":", end=" ")
-        if result == True:
-            print(self.GREEN_BOLD_BRIGHT + "PASSED" )
-        else:
-            print(self.RED_BOLD_BRIGHT + "FAILED" )
-            
-    @staticmethod
-    def currentTest():
-        return inspect.stack()[1][3]    
+        response = requests.post(self.URL, final_result, headers={"Content-Type": "application/json"})
+        if response.status_code not in [200, 201]:
+            length = len(customData)
+            print(f'⚠️ Unable to push test cases from {hostName}, please try again![{length}]')
